@@ -1,0 +1,66 @@
+:root {
+    --pfa-primary: #0f4c81;
+    --pfa-accent: #f4b942;
+    --pfa-soft: #eef4fb;
+    --pfa-dark: #1f2937;
+}
+
+body {
+    background: linear-gradient(180deg, #f8fbff 0%, #edf3f9 100%);
+    color: var(--pfa-dark);
+}
+
+.hero {
+    background: linear-gradient(135deg, rgba(15, 76, 129, 0.95), rgba(42, 111, 151, 0.88));
+    color: #fff;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.hero::after {
+    content: "";
+    position: absolute;
+    inset: auto -10% -35% auto;
+    width: 260px;
+    height: 260px;
+    background: rgba(244, 185, 66, 0.18);
+    border-radius: 50%;
+}
+
+.feature-card,
+.panel-card {
+    border: 0;
+    border-radius: 1rem;
+    box-shadow: 0 14px 35px rgba(31, 41, 55, 0.08);
+}
+
+.feature-icon {
+    width: 3rem;
+    height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.9rem;
+    background: var(--pfa-soft);
+    color: var(--pfa-primary);
+    font-weight: 700;
+}
+
+.status-pill {
+    background: rgba(25, 135, 84, 0.12);
+    color: #198754;
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.section-title {
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.table thead th {
+    background: #f8f9fa;
+}
