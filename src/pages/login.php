@@ -1,4 +1,9 @@
 <?php
+/**
+ * Login page controller.
+ *
+ * Handles authentication requests and renders the login form.
+ */
 require_once(__DIR__ . '/../prefabs/auth.php');
 require_once(__DIR__ . '/../prefabs/database_connection.php');
 
@@ -9,6 +14,7 @@ $email = '';
 $loginError = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Collect submitted credentials and validate the inputs.
     $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
 
@@ -27,7 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 u.Role,
                 u.GroupeId,
                 g.Libelle AS GroupeLibelle,
+                n.Id AS NiveauId,
                 n.Libelle AS NiveauLibelle,
+                f.Id AS FiliereId,
                 f.Libelle AS FiliereLibelle
             FROM utilisateurs u
             LEFT JOIN groupes g ON g.Id = u.GroupeId
@@ -42,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $storedPassword = $user['Password'] ?? '';
         $passwordMatches = false;
 
+        // Authenticate the user by comparing the submitted password to the stored hash.
         if ($user && password_verify($password, $storedPassword)) {
             session_regenerate_id(true);
             $_SESSION['user'] = [
@@ -52,7 +61,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'role' => $user['Role'],
                 'groupe_id' => $user['GroupeId'],
                 'groupe' => $user['GroupeLibelle'] ?? '',
+                'niveau_id' => $user['NiveauId'],
                 'niveau' => $user['NiveauLibelle'] ?? '',
+                'filiere_id' => $user['FiliereId'],
                 'filiere' => $user['FiliereLibelle'] ?? '',
             ];
 
@@ -69,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Re:Classify - Login</title>
+    <title>E-Student / Login</title>
     <link rel="stylesheet" href="../css/bootstrap.min.css">
     <link rel="stylesheet" href="../css/styles.css">
 </head>

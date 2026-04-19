@@ -1,4 +1,9 @@
 <?php
+/**
+ * Sign out the current authenticated user.
+ *
+ * This removes the session payload and expires the session cookie.
+ */
 require_once(__DIR__ . '/auth.php');
 
 ensureSessionStarted();

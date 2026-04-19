@@ -1,4 +1,10 @@
 <?php
+/**
+ * Registration page controller.
+ *
+ * Validates new signups, preserves form values on validation failure,
+ * and inserts new students into the users table.
+ */
 require_once(__DIR__ . '/../prefabs/auth.php');
 
 ensureSessionStarted();
@@ -10,7 +16,7 @@ redirectAuthenticatedUser('dashboard.php');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Re:Classify - Register</title>
+    <title>E-Student / Register</title>
     <link rel="stylesheet" href="../css/bootstrap.min.css">
     <link rel="stylesheet" href="../css/styles.css">
 </head>
@@ -22,6 +28,10 @@ redirectAuthenticatedUser('dashboard.php');
     require_once('../prefabs/database_connection.php');
 
     $nomErreur = $prenomErreur = $emailErreur = $passErreur = $filiereErreur = $niveauErreur = $groupeErreur = '';
+    $FirstName = $LastName = $Email = '';
+    $Password = $ConfirmPassword = '';
+    $Filiere = $Niveau = $Groupe = '';
+    $selectedFiliere = $selectedNiveau = $selectedGroupe = '';
 
     $filieresQuery = $database->query("SELECT Id, Libelle FROM filieres ORDER BY Id");
     $filieres = $filieresQuery->fetchAll(PDO::FETCH_ASSOC);
@@ -162,9 +172,9 @@ redirectAuthenticatedUser('dashboard.php');
         }
     };
 
-    $selectedFiliere = $_POST['filiere'] ?? '';
-    $selectedNiveau = $_POST['niveau'] ?? '';
-    $selectedGroupe = $_POST['groupe'] ?? '';
+    $selectedFiliere = $Filiere;
+    $selectedNiveau = $Niveau;
+    $selectedGroupe = $Groupe;
     ?>
 
     <main class="container py-5 min-vh-100 d-flex align-items-center">
@@ -181,24 +191,27 @@ redirectAuthenticatedUser('dashboard.php');
 
                             <form method="POST" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>">
                                 <div class="mb-3">
-                                    <label for="FirstName" class="form-label">First Name <span class="text-danger">*
-                                            <?php echo $nomErreur; ?></span></label>
+                                    <label for="FirstName" class="form-label">First Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control form-control-lg" id="FirstName"
-                                        name="first_name" placeholder="Enter your first name">
+                                        name="first_name" placeholder="Enter your first name"
+                                        value="<?php echo htmlspecialchars($FirstName, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <div class="form-text text-danger"><?php echo htmlspecialchars($nomErreur, ENT_QUOTES, 'UTF-8'); ?></div>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="LastName" class="form-label">Last Name <span class="text-danger">*
-                                            <?php echo $prenomErreur; ?></span></label>
+                                    <label for="LastName" class="form-label">Last Name <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control form-control-lg" id="LastName"
-                                        name="last_name" placeholder="Enter your last name">
+                                        name="last_name" placeholder="Enter your last name"
+                                        value="<?php echo htmlspecialchars($LastName, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <div class="form-text text-danger"><?php echo htmlspecialchars($prenomErreur, ENT_QUOTES, 'UTF-8'); ?></div>
                                 </div>
 
                                 <div class="mb-3">
-                                    <label for="adrEmail" class="form-label">Email address <span class="text-danger">*
-                                            <?php echo $emailErreur; ?></span></label>
+                                    <label for="adrEmail" class="form-label">Email address <span class="text-danger">*</span></label>
                                     <input type="email" class="form-control form-control-lg" id="adrEmail" name="email"
-                                        placeholder="prenom.nom@esen.tn">
+                                        placeholder="prenom.nom@esen.tn"
+                                        value="<?php echo htmlspecialchars($Email, ENT_QUOTES, 'UTF-8'); ?>">
+                                    <div class="form-text text-danger"><?php echo htmlspecialchars($emailErreur, ENT_QUOTES, 'UTF-8'); ?></div>
                                 </div>
 
                                 <div class="row g-3">

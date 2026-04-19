@@ -10,7 +10,7 @@ redirectAuthenticatedUser('pages/dashboard.php');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Re:Classify - Acceuil</title>
+    <title>E-Student / Acceuil</title>
     <link rel="stylesheet" href="css/bootstrap.min.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -32,6 +32,73 @@ redirectAuthenticatedUser('pages/dashboard.php');
    ");
    $filiereStats = $filiereStatsQuery->fetchAll(PDO::FETCH_ASSOC);
    $totalRegistered = array_sum(array_column($filiereStats, 'total_registered'));
+
+   $announcementsQuery = $database->query(
+        "SELECT Id, Titre, Contenu, DatePublication
+         FROM announcements
+         ORDER BY DatePublication DESC, Id DESC
+         LIMIT 6"
+   );
+   $announcements = $announcementsQuery->fetchAll(PDO::FETCH_ASSOC);
+
+   // Fetch default timetable for preview (first filiere, first niveau, first group)
+   $defaultFiliere = $database->query("SELECT Id, Libelle FROM filieres ORDER BY Libelle LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+   $defaultNiveau = $database->query("SELECT Id, Libelle FROM niveaux ORDER BY Id LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+   $defaultGroup = $database->query("SELECT Id, Libelle FROM groupes WHERE FiliereId = {$defaultFiliere['Id']} AND nivId = {$defaultNiveau['Id']} ORDER BY Libelle LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+
+   $emploi_du_temps = [];
+   $scheduleDays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+   $scheduleGrid = [];
+   $timetableSlots = [];
+
+   if ($defaultFiliere && $defaultNiveau && $defaultGroup) {
+       $horairesQuery = $database->prepare("SELECT HeureDebut, HeureFin FROM horaires ORDER BY HeureDebut ASC");
+       $horairesQuery->execute();
+       $horairesList = $horairesQuery->fetchAll(PDO::FETCH_ASSOC);
+       foreach ($horairesList as $horaire) {
+           $timetableSlots[] = date('H:i', strtotime($horaire['HeureDebut'])) . ' - ' . date('H:i', strtotime($horaire['HeureFin']));
+       }
+
+       $emploiQuery = $database->prepare(
+           "SELECT e.Jour, h.HeureDebut, h.HeureFin, m.Libelle AS Matiere, u.Prenom AS EnsPrenom, u.Nom AS EnsNom, e.Salle, e.Type
+            FROM emplois e
+            LEFT JOIN horaires h ON e.HoraireId = h.Id
+            LEFT JOIN matieres m ON e.MatiereId = m.Id
+            LEFT JOIN utilisateurs u ON e.EnsId = u.Id
+            WHERE e.FiliereId = :filiereId AND e.NiveauId = :niveauId AND e.GroupeId = :groupeId
+            ORDER BY FIELD(e.Jour,'Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'), h.HeureDebut"
+       );
+       $emploiQuery->execute([
+           'filiereId' => $defaultFiliere['Id'],
+           'niveauId' => $defaultNiveau['Id'],
+           'groupeId' => $defaultGroup['Id']
+       ]);
+       $emploi_du_temps = $emploiQuery->fetchAll(PDO::FETCH_ASSOC);
+
+       foreach ($emploi_du_temps as $entry) {
+           $slotLabel = date('H:i', strtotime($entry['HeureDebut'])) . ' - ' . date('H:i', strtotime($entry['HeureFin']));
+           $scheduleGrid[$entry['Jour']][$slotLabel] = $entry;
+       }
+
+       foreach ($scheduleDays as $day) {
+           if (!isset($scheduleGrid[$day])) {
+               $scheduleGrid[$day] = [];
+           }
+       }
+   }
+
+   $typeColors = [
+       'Cours' => 'bg-primary bg-opacity-10 border-primary',
+       'TD' => 'bg-success bg-opacity-10 border-success',
+       'TP' => 'bg-warning bg-opacity-10 border-warning',
+   ];
+
+   $typeBadges = [
+       'Cours' => 'badge text-bg-primary',
+       'TD' => 'badge text-bg-success',
+       'TP' => 'badge text-bg-warning',
+   ];
+
    ?>
 
     <main class="container py-5">
@@ -117,78 +184,97 @@ redirectAuthenticatedUser('pages/dashboard.php');
             <div class="row g-4">
                 
                 <div class="col-lg-12">
-                    <div class="card panel-card h-100">
-                        <div class="card-body p-4">
-                            <h2 class="section-title h4 mb-3">Announcements</h2>
-                            <div class="accordion" id="announcements">
-                                <div class="accordion-item">
-                                    <h3 class="accordion-header">
-                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#announcementOne" aria-expanded="true" aria-controls="announcementOne">
-                                            Exam preparation session
-                                        </button>
-                                    </h3>
-                                    <div id="announcementOne" class="accordion-collapse collapse show" data-bs-parent="#announcements">
-                                        <div class="accordion-body">
-                                            Revision support will be held on Thursday afternoon in Lab 2.
-                                        </div>
+                        <div class="card panel-card h-100">
+                            <div class="card-body p-4">
+                                <h2 class="section-title h4 mb-3">Announcements</h2>
+                                <?php if (empty($announcements)): ?>
+                                    <p class="text-secondary mb-0">No announcements have been published yet.</p>
+                                <?php else: ?>
+                                    <div class="accordion" id="announcements">
+                                        <?php foreach ($announcements as $index => $announcement): ?>
+                                            <?php $panelId = 'announcement' . (int) $announcement['Id']; ?>
+                                            <div class="accordion-item">
+                                                <h3 class="accordion-header">
+                                                    <button
+                                                        class="accordion-button <?php echo $index === 0 ? '' : 'collapsed'; ?>"
+                                                        type="button"
+                                                        data-bs-toggle="collapse"
+                                                        data-bs-target="#<?php echo htmlspecialchars($panelId, ENT_QUOTES, 'UTF-8'); ?>"
+                                                        aria-expanded="<?php echo $index === 0 ? 'true' : 'false'; ?>"
+                                                        aria-controls="<?php echo htmlspecialchars($panelId, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    >
+                                                        <?php echo htmlspecialchars($announcement['Titre'], ENT_QUOTES, 'UTF-8'); ?>
+                                                    </button>
+                                                </h3>
+                                                <div
+                                                    id="<?php echo htmlspecialchars($panelId, ENT_QUOTES, 'UTF-8'); ?>"
+                                                    class="accordion-collapse collapse <?php echo $index === 0 ? 'show' : ''; ?>"
+                                                    data-bs-parent="#announcements"
+                                                >
+                                                    <div class="accordion-body">
+                                                        <p class="small text-muted mb-2"><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($announcement['DatePublication'])), ENT_QUOTES, 'UTF-8'); ?></p>
+                                                        <p class="mb-0"><?php echo nl2br(htmlspecialchars($announcement['Contenu'], ENT_QUOTES, 'UTF-8')); ?></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
                                     </div>
-                                </div>
-                                <div class="accordion-item">
-                                    <h3 class="accordion-header">
-                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#announcementTwo" aria-expanded="false" aria-controls="announcementTwo">
-                                            Timetable updated
-                                        </button>
-                                    </h3>
-                                    <div id="announcementTwo" class="accordion-collapse collapse" data-bs-parent="#announcements">
-                                        <div class="accordion-body">
-                                            The Wednesday programming course now starts at 09:00 instead of 08:00.
-                                        </div>
-                                    </div>
-                                </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
-                </div>
             </div>
         </section>
 
         <section id="schedule" class="mb-5">
             <div class="card panel-card">
                 <div class="card-body p-4">
-                    <div class="row align-items-center mb-4">
-                        <div class="col-md-8">
-                            <h2 class="section-title h4 mb-1">Weekly Timetable</h2>
-                            <p class="text-secondary mb-0">Teachers can update this section for each class and subject.</p>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h2 class="section-title h4 mb-1">Timetable Preview</h2>
+                            <p class="text-secondary mb-0">Sample timetable for <?php echo htmlspecialchars(($defaultFiliere['Libelle'] ?? 'N/A') . ' / ' . ($defaultNiveau['Libelle'] ?? 'N/A') . ' / ' . ($defaultGroup['Libelle'] ?? 'N/A'), ENT_QUOTES, 'UTF-8'); ?>. View all timetables below.</p>
                         </div>
-                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
-                            <button class="btn btn-outline-primary">Edit timetable</button>
+                        <div class="text-md-end mt-3 mt-md-0">
+                            <a href="pages/emplois_du_temps.php" class="btn btn-outline-primary">View All Timetables</a>
                         </div>
                     </div>
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <div class="p-3 rounded-4 bg-light h-100">
-                                <h3 class="h6">Monday</h3>
-                                <p class="mb-2">08:00 - Web Development</p>
-                                <p class="mb-2">10:00 - Database Systems</p>
-                                <p class="mb-0">13:00 - English</p>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3 rounded-4 bg-light h-100">
-                                <h3 class="h6">Tuesday</h3>
-                                <p class="mb-2">08:00 - Algorithms</p>
-                                <p class="mb-2">11:00 - Mathematics</p>
-                                <p class="mb-0">14:00 - Networks</p>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="p-3 rounded-4 bg-light h-100">
-                                <h3 class="h6">Wednesday</h3>
-                                <p class="mb-2">09:00 - Programming Lab</p>
-                                <p class="mb-2">11:00 - Software Design</p>
-                                <p class="mb-0">15:00 - Project Workshop</p>
-                            </div>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle text-center table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col">Jour</th>
+                                    <?php foreach ($timetableSlots as $slot) { ?>
+                                        <th scope="col"><?php echo htmlspecialchars($slot, ENT_QUOTES, 'UTF-8'); ?></th>
+                                    <?php } ?>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($scheduleDays as $day) { ?>
+                                    <tr>
+                                        <th class="text-start"><?php echo htmlspecialchars($day, ENT_QUOTES, 'UTF-8'); ?></th>
+                                        <?php foreach ($timetableSlots as $slot) {
+                                            $entry = $scheduleGrid[$day][$slot] ?? null;
+                                            if ($entry) {
+                                                $entryType = $entry['Type'] ?? 'Cours';
+                                                $entryClass = $typeColors[$entryType] ?? 'bg-secondary bg-opacity-10 border-secondary';
+                                                $badgeClass = $typeBadges[$entryType] ?? 'badge text-bg-secondary';
+                                                ?>
+                                                <td class="p-2">
+                                                    <div class="border rounded-3 p-2 <?php echo $entryClass; ?>">
+                                                        <div class="mb-1"><strong><?php echo htmlspecialchars($entry['Matiere'], ENT_QUOTES, 'UTF-8'); ?></strong></div>
+                                                        <div class="small text-muted mb-1"><?php echo htmlspecialchars($entry['EnsPrenom'] . ' ' . $entry['EnsNom'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                                        <div class="small text-muted mb-2">Salle: <?php echo htmlspecialchars($entry['Salle'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                                        <span class="<?php echo $badgeClass; ?>"><?php echo htmlspecialchars($entryType, ENT_QUOTES, 'UTF-8'); ?></span>
+                                                    </div>
+                                                </td>
+                                            <?php } else { ?>
+                                                <td class="bg-white"></td>
+                                            <?php } ?>
+                                        <?php } ?>
+                                    </tr>
+                                <?php } ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -201,7 +287,7 @@ redirectAuthenticatedUser('pages/dashboard.php');
                         <div class="col-lg-7">
                             <h2 class="section-title h3">Ready to connect your class?</h2>
                             <p class="text-secondary mb-0">
-                                This interface can be your starting page before adding PHP forms, authentication, and database integration.
+                                Join us now to communicate with your teachers and classmates and stay up to date with all your class updates and schedules in one place.
                             </p>
                         </div>
                         <div class="col-lg-5">
